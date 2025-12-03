@@ -1,0 +1,51 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-db
+    environment:
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: pass
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "app", "-p(pass)" ]
+      timeout: 20s
+      retries: 10
+      interval: 5s
+      start_period: 30s
+
+  gate-simulator:
+    build:
+      context: ./gate-simulator
+      dockerfile: Dockerfile
+    container_name: gate-simulator
+    ports:
+      - "9999:9999"
+    depends_on:
+      - mysql
+
+  aqa-shop:
+    image: openjdk:25-ea-17-jdk-bullseye
+    container_name: aqa-shop
+    volumes:
+      - ./aqa-shop.jar:/app.jar
+      - ./application.properties:/application.properties
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy  # ✅ Ждём, пока MySQL будет здоров
+      gate-simulator:
+        condition: service_started
+    command: [ "java", "-jar", "/app.jar", "--spring.config.location=/application.properties" ]
+
+volumes:
+  mysql_data:

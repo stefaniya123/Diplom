@@ -1,0 +1,14 @@
+# UI-тестирование
+selenium==4.20.0
+
+# Фреймворк тестирования
+pytest==7.4.4
+
+# Интеграция с Allure
+allure-pytest==2.13.5
+
+# Работа с базой данных MySQL
+mysql-connector-python==8.3.0
+
+
+webdriver-manager==4.0.2
