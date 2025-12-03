@@ -42,5 +42,5 @@ class TestSuccessfulPurchase(unittest.TestCase):
         inputs[3].send_keys("иван")                 # Владелец
         inputs[4].send_keys("999")                  # CVC
 
-    
+
 
