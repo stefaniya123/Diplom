@@ -69,7 +69,6 @@ class TestSuccessfulPurchase(unittest.TestCase):
         driver = self.driver
 
         # === ШАГ 1: Ждём и нажимаем кнопку "Купить в кредит" ===
-        # Ищем кнопку по тексту "Купить в кредит"
         credit_button = WebDriverWait(driver, 25).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
         )
@@ -112,6 +111,104 @@ class TestSuccessfulPurchase(unittest.TestCase):
 
         content_element = driver.find_element(By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__content")
         assert "Операция одобрена Банком." in content_element.text.strip(), f"Неверное содержимое: '{content_element.text}'"
+
+
+    def test_invalid_card_fields(self):
+        """Тест: попытка отправить форму с пустыми полями (покупка по карте)"""
+        driver = self.driver
+
+        # === ШАГ 1: Ждём и нажимаем кнопку "Купить" ===
+        buy_button = WebDriverWait(driver, 25).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
+        driver.execute_script("arguments[0].click();", buy_button)
+
+        # === ШАГ 2: Ждём формы "Оплата по карте" ===
+        WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
+        )
+
+        # === ШАГ 3: НЕ ЗАПОЛНЯЕМ ПОЛЯ — оставляем их пустыми ===
+
+        # === ШАГ 4: Нажимаем КНОПКУ "Продолжить" ===
+        continue_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH,
+                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+        )
+        continue_button.click()
+
+        # === ШАГ 5: Ждём появления сообщений об ошибках под каждым полем ===
+        error_elements = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
+        )
+
+        # Проверяем количество ошибок (должно быть 5)
+        self.assertEqual(len(error_elements), 5, "Должно быть 5 сообщений об ошибках")
+
+        # Проверяем текст каждого сообщения
+        expected_error_texts = [
+            "Неверный формат",     # Номер карты
+            "Неверный формат",     # Месяц
+            "Неверный формат",     # Год
+            "Поле обязательно для заполнения",  # Владелец
+            "Неверный формат"      # CVC
+        ]
+
+        for i, error_element in enumerate(error_elements):
+            actual_text = error_element.text.strip()
+            expected_text = expected_error_texts[i]
+            self.assertEqual(actual_text, expected_text,
+                             f"Ошибка в поле {i+1}: ожидается '{expected_text}', получено '{actual_text}'")
+
+
+    def test_invalid_credit_fields(self):
+        """Тест: попытка отправить форму с пустыми полями (покупка в кредит)"""
+        driver = self.driver
+
+        # === ШАГ 1: Ждём и нажимаем кнопку "Купить в кредит" ===
+        credit_button = WebDriverWait(driver, 25).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
+        driver.execute_script("arguments[0].click();", credit_button)
+
+        # === ШАГ 2: Ждём формы "Кредит по данным карты" ===
+        WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
+        )
+
+        # === ШАГ 3: НЕ ЗАПОЛНЯЕМ ПОЛЯ — оставляем их пустыми ===
+
+        # === ШАГ 4: Нажимаем КНОПКУ "Продолжить" ===
+        continue_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH,
+                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+        )
+        continue_button.click()
+
+        # === ШАГ 5: Ждём появления сообщений об ошибках под каждым полем ===
+        error_elements = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
+        )
+
+        # Проверяем количество ошибок (должно быть 5)
+        self.assertEqual(len(error_elements), 5, "Должно быть 5 сообщений об ошибках")
+
+        # Проверяем текст каждого сообщения
+        expected_error_texts = [
+            "Неверный формат",     # Номер карты
+            "Неверный формат",     # Месяц
+            "Неверный формат",     # Год
+            "Поле обязательно для заполнения",  # Владелец
+            "Неверный формат"      # CVC
+        ]
+
+        for i, error_element in enumerate(error_elements):
+            actual_text = error_element.text.strip()
+            expected_text = expected_error_texts[i]
+            self.assertEqual(actual_text, expected_text,
+                             f"Ошибка в поле {i+1}: ожидается '{expected_text}', получено '{actual_text}'")
 
 
     def tearDown(self):
