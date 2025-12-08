@@ -1,6 +1,8 @@
+
 import unittest
+import allure
+from allure_commons.types import AttachmentType
 from selenium import webdriver
-from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -16,418 +18,388 @@ class TestSuccessfulPurchase(unittest.TestCase):
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         self.driver.get("http://localhost:8080")
 
+    def tearDown(self):
+        # Делаем скриншот только если тест упал
+        if hasattr(self, '_outcome') and self._outcome.errors:
+            try:
+                allure.attach(
+                    self.driver.get_screenshot_as_png(),
+                    name="screenshot_on_failure",
+                    attachment_type=AttachmentType.PNG
+                )
+            except Exception as e:
+                print(f"Не удалось сделать скриншот: {e}")
+        self.driver.quit()
+
+    # ───────────────────────────────────────
+    # ✅ УСПЕШНЫЕ ПОКУПКИ
+    # ───────────────────────────────────────
+
+    @allure.feature("Оплата по карте")
+    @allure.story("Успешная оплата")
+    @allure.title("Успешная покупка по карте с корректными данными")
     def test_successful_card_purchase(self):
-        """Тест для покупки по карте"""
         driver = self.driver
 
-        # === ШАГ 1: Ждём кнопку "Купить" ===
-        buy_button = WebDriverWait(driver, 25).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
-        driver.execute_script("arguments[0].click();", buy_button)
-
-        # === ШАГ 2: Ждём формы "Оплата по карте" ===
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
-        )
-
-        # === ШАГ 3: Заполняем поля ===
-        inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-        inputs[0].send_keys("4444 4444 4444 4442")  # Номер карты
-        inputs[1].send_keys("08")                   # Месяц
-        inputs[2].send_keys("26")                   # Год
-        inputs[3].send_keys("иван")                 # Владелец
-        inputs[4].send_keys("999")                  # CVC
-
-        # === ШАГ 4: Нажимаем КНОПКУ "Продолжить" ===
-        continue_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
-        )
-        continue_button.click()
-
-        # === ШАГ 5: Ждём, пока кнопка станет disabled и изменит текст на "Отправляем запрос в Банк..." ===
-        WebDriverWait(driver, 15).until(
-            EC.text_to_be_present_in_element(
-                (By.CSS_SELECTOR, "button.button_view_extra.button_size_m.button_theme_alfa-on-white.button_disabled .button__text"),
-                "Отправляем запрос в Банк..."
+        with allure.step("Нажать кнопку 'Купить'"):
+            buy_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
             )
-        )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
+            driver.execute_script("arguments[0].click();", buy_button)
 
-        # === ШАГ 6: Ждём появления уведомления "Успешно Операция одобрена банком" ===
-        title_element = WebDriverWait(driver, 25).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__title"))
-        )
-        assert title_element.text.strip() == "Успешно", f"Неверный заголовок: '{title_element.text}'"
+        with allure.step("Дождаться формы 'Оплата по карте'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
+            )
 
-        content_element = driver.find_element(By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__content")
-        assert "Операция одобрена Банком." in content_element.text.strip(), f"Неверное содержимое: '{content_element.text}'"
+        with allure.step("Заполнить форму корректными данными"):
+            inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
+            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[1].send_keys("08")
+            inputs[2].send_keys("26")
+            inputs[3].send_keys("иван")
+            inputs[4].send_keys("999")
 
+        with allure.step("Нажать кнопку 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
 
+        with allure.step("Дождаться состояния 'Отправляем запрос в Банк...'"):
+            WebDriverWait(driver, 15).until(
+                EC.text_to_be_present_in_element(
+                    (By.CSS_SELECTOR, "button.button_view_extra.button_size_m.button_theme_alfa-on-white.button_disabled .button__text"),
+                    "Отправляем запрос в Банк..."
+                )
+            )
+
+        with allure.step("Проверить успешное уведомление"):
+            title_element = WebDriverWait(driver, 25).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__title"))
+            )
+            assert title_element.text.strip() == "Успешно"
+            content_element = driver.find_element(By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__content")
+            assert "Операция одобрена Банком." in content_element.text.strip()
+
+    @allure.feature("Покупка в кредит")
+    @allure.story("Успешная оплата")
+    @allure.title("Успешная покупка в кредит с корректными данными")
     def test_successful_credit_purchase(self):
-        """Тест для покупки в кредит"""
         driver = self.driver
 
-        # === ШАГ 1: Ждём и нажимаем кнопку "Купить в кредит" ===
-        credit_button = WebDriverWait(driver, 25).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
-        driver.execute_script("arguments[0].click();", credit_button)
-
-        # === ШАГ 2: Ждём формы "Кредит по данным карты" ===
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
-        )
-
-        # === ШАГ 3: Заполняем поля (такие же, как и в первом тесте) ===
-        inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-        inputs[0].send_keys("4444 4444 4444 4442")  # Номер карты
-        inputs[1].send_keys("08")                   # Месяц
-        inputs[2].send_keys("26")                   # Год
-        inputs[3].send_keys("иван")                 # Владелец
-        inputs[4].send_keys("999")                  # CVC
-
-        # === ШАГ 4: Нажимаем КНОПКУ "Продолжить" (та же логика) ===
-        continue_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
-        )
-        continue_button.click()
-
-        # === ШАГ 5: Ждём, пока кнопка станет disabled и изменит текст на "Отправляем запрос в Банк..." ===
-        WebDriverWait(driver, 15).until(
-            EC.text_to_be_present_in_element(
-                (By.CSS_SELECTOR, "button.button_view_extra.button_size_m.button_theme_alfa-on-white.button_disabled .button__text"),
-                "Отправляем запрос в Банк..."
+        with allure.step("Нажать кнопку 'Купить в кредит'"):
+            credit_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
             )
-        )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
+            driver.execute_script("arguments[0].click();", credit_button)
 
-        # === ШАГ 6: Ждём появления уведомления "Успешно Операция одобрена банком" ===
-        title_element = WebDriverWait(driver, 25).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__title"))
-        )
-        assert title_element.text.strip() == "Успешно", f"Неверный заголовок: '{title_element.text}'"
+        with allure.step("Дождаться формы 'Кредит по данным карты'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
+            )
 
-        content_element = driver.find_element(By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__content")
-        assert "Операция одобрена Банком." in content_element.text.strip(), f"Неверное содержимое: '{content_element.text}'"
+        with allure.step("Заполнить форму корректными данными"):
+            inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
+            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[1].send_keys("08")
+            inputs[2].send_keys("26")
+            inputs[3].send_keys("иван")
+            inputs[4].send_keys("999")
 
+        with allure.step("Нажать кнопку 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
 
+        with allure.step("Дождаться состояния 'Отправляем запрос в Банк...'"):
+            WebDriverWait(driver, 15).until(
+                EC.text_to_be_present_in_element(
+                    (By.CSS_SELECTOR, "button.button_view_extra.button_size_m.button_theme_alfa-on-white.button_disabled .button__text"),
+                    "Отправляем запрос в Банк..."
+                )
+            )
+
+        with allure.step("Проверить успешное уведомление"):
+            title_element = WebDriverWait(driver, 25).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__title"))
+            )
+            assert title_element.text.strip() == "Успешно"
+            content_element = driver.find_element(By.CSS_SELECTOR, "div.notification.notification_status_ok .notification__content")
+            assert "Операция одобрена Банком." in content_element.text.strip()
+
+    # ───────────────────────────────────────
+    # ❌ ВАЛИДАЦИЯ ПУСТЫХ ПОЛЕЙ
+    # ───────────────────────────────────────
+
+    @allure.feature("Оплата по карте")
+    @allure.story("Валидация формы")
+    @allure.title("Ошибка при отправке формы с пустыми полями (покупка по карте)")
     def test_invalid_card_fields(self):
-        """Тест: попытка отправить форму с пустыми полями (покупка по карте)"""
         driver = self.driver
 
-        # === ШАГ 1: Ждём и нажимаем кнопку "Купить" ===
-        buy_button = WebDriverWait(driver, 25).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
-        driver.execute_script("arguments[0].click();", buy_button)
+        with allure.step("Нажать кнопку 'Купить'"):
+            buy_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
+            driver.execute_script("arguments[0].click();", buy_button)
 
-        # === ШАГ 2: Ждём формы "Оплата по карте" ===
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
-        )
+        with allure.step("Дождаться формы 'Оплата по карте'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
+            )
 
-        # === ШАГ 3: НЕ ЗАПОЛНЯЕМ ПОЛЯ — оставляем их пустыми ===
+        with allure.step("Оставить все поля пустыми и нажать 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
 
-        # === ШАГ 4: Нажимаем КНОПКУ "Продолжить" ===
-        continue_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
-        )
-        continue_button.click()
+        with allure.step("Проверить сообщения об ошибках под каждым полем"):
+            error_elements = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
+            )
+            self.assertEqual(len(error_elements), 5)
 
-        # === ШАГ 5: Ждём появления сообщений об ошибках под каждым полем ===
-        error_elements = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
-        )
+            expected_errors = [
+                "Неверный формат",
+                "Неверный формат",
+                "Неверный формат",
+                "Поле обязательно для заполнения",
+                "Неверный формат"
+            ]
+            for i, err in enumerate(error_elements):
+                self.assertEqual(err.text.strip(), expected_errors[i])
 
-        # Проверяем количество ошибок (должно быть 5)
-        self.assertEqual(len(error_elements), 5, "Должно быть 5 сообщений об ошибках")
-
-        # Проверяем текст каждого сообщения
-        expected_error_texts = [
-            "Неверный формат",     # Номер карты
-            "Неверный формат",     # Месяц
-            "Неверный формат",     # Год
-            "Поле обязательно для заполнения",  # Владелец
-            "Неверный формат"      # CVC
-        ]
-
-        for i, error_element in enumerate(error_elements):
-            actual_text = error_element.text.strip()
-            expected_text = expected_error_texts[i]
-            self.assertEqual(actual_text, expected_text,
-                             f"Ошибка в поле {i+1}: ожидается '{expected_text}', получено '{actual_text}'")
-
-
+    @allure.feature("Покупка в кредит")
+    @allure.story("Валидация формы")
+    @allure.title("Ошибка при отправке формы с пустыми полями (покупка в кредит)")
     def test_invalid_credit_fields(self):
-        """Тест: попытка отправить форму с пустыми полями (покупка в кредит)"""
         driver = self.driver
 
-        # === ШАГ 1: Ждём и нажимаем кнопку "Купить в кредит" ===
-        credit_button = WebDriverWait(driver, 25).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
-        driver.execute_script("arguments[0].click();", credit_button)
+        with allure.step("Нажать кнопку 'Купить в кредит'"):
+            credit_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
+            driver.execute_script("arguments[0].click();", credit_button)
 
-        # === ШАГ 2: Ждём формы "Кредит по данным карты" ===
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
-        )
+        with allure.step("Дождаться формы 'Кредит по данным карты'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
+            )
 
-        # === ШАГ 3: НЕ ЗАПОЛНЯЕМ ПОЛЯ — оставляем их пустыми ===
+        with allure.step("Оставить все поля пустыми и нажать 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
 
-        # === ШАГ 4: Нажимаем КНОПКУ "Продолжить" ===
-        continue_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
-        )
-        continue_button.click()
+        with allure.step("Проверить сообщения об ошибках под каждым полем"):
+            error_elements = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
+            )
+            self.assertEqual(len(error_elements), 5)
 
-        # === ШАГ 5: Ждём появления сообщений об ошибках под каждым полем ===
-        error_elements = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
-        )
+            expected_errors = [
+                "Неверный формат",
+                "Неверный формат",
+                "Неверный формат",
+                "Поле обязательно для заполнения",
+                "Неверный формат"
+            ]
+            for i, err in enumerate(error_elements):
+                self.assertEqual(err.text.strip(), expected_errors[i])
 
-        # Проверяем количество ошибок (должно быть 5)
-        self.assertEqual(len(error_elements), 5, "Должно быть 5 сообщений об ошибках")
+    # ───────────────────────────────────────
+    # ⏳ ВАЛИДАЦИЯ ИСТЕКШЕГО СРОКА
+    # ───────────────────────────────────────
 
-        # Проверяем текст каждого сообщения
-        expected_error_texts = [
-            "Неверный формат",     # Номер карты
-            "Неверный формат",     # Месяц
-            "Неверный формат",     # Год
-            "Поле обязательно для заполнения",  # Владелец
-            "Неверный формат"      # CVC
-        ]
-
-        for i, error_element in enumerate(error_elements):
-            actual_text = error_element.text.strip()
-            expected_text = expected_error_texts[i]
-            self.assertEqual(actual_text, expected_text,
-                             f"Ошибка в поле {i+1}: ожидается '{expected_text}', получено '{actual_text}'")
-
+    @allure.feature("Оплата по карте")
+    @allure.story("Валидация срока действия")
+    @allure.title("Ошибка 'Истёк срок действия карты' при вводе года 24 (покупка по карте)")
     def test_expired_year_card(self):
-        """Тест: истекший год (покупка по карте)"""
         driver = self.driver
 
-        # === ШАГ 1: Ждём и нажимаем кнопку "Купить" ===
-        buy_button = WebDriverWait(driver, 25).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
-        driver.execute_script("arguments[0].click();", buy_button)
+        with allure.step("Нажать кнопку 'Купить'"):
+            buy_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
+            driver.execute_script("arguments[0].click();", buy_button)
 
-        # === ШАГ 2: Ждём формы "Оплата по карте" ===
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
-        )
+        with allure.step("Дождаться формы 'Оплата по карте'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
+            )
 
-        # === ШАГ 3: Заполняем поля с истекшим годом ===
-        inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-        inputs[0].send_keys("4444 4444 4444 4442")  # Номер карты
-        inputs[1].send_keys("10")                   # Месяц
-        inputs[2].send_keys("24")                   # Год (истекший)
-        inputs[3].send_keys("иван")                 # Владелец
-        inputs[4].send_keys("999")                  # CVC
+        with allure.step("Заполнить форму с истекшим годом (24)"):
+            inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
+            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[1].send_keys("10")
+            inputs[2].send_keys("24")
+            inputs[3].send_keys("иван")
+            inputs[4].send_keys("999")
 
-        # === ШАГ 4: Нажимаем КНОПКУ "Продолжить" ===
-        continue_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
-        )
-        continue_button.click()
+        with allure.step("Нажать кнопку 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
 
-        # === ШАГ 5: Ждём появления сообщения с текстом "Истёк срок действия карты" ===
-        year_error_element = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located(
-                (By.XPATH, "//span[@class='input__sub' and text()='Истёк срок действия карты']"))
-        )
+        with allure.step("Проверить ошибку под полем 'Год'"):
+            error_element = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//span[@class='input__sub' and text()='Истёк срок действия карты']"))
+            )
+            self.assertEqual(error_element.text.strip(), "Истёк срок действия карты")
 
-        # Проверяем текст сообщения
-        actual_text = year_error_element.text.strip()
-        expected_text = "Истёк срок действия карты"
-        self.assertEqual(actual_text, expected_text,
-                         f"Ожидалось сообщение '{expected_text}', получено '{actual_text}'")
-
-
+    @allure.feature("Покупка в кредит")
+    @allure.story("Валидация срока действия")
+    @allure.title("Ошибка 'Истёк срок действия карты' при вводе года 24 (покупка в кредит)")
     def test_expired_year_credit(self):
-        """Тест: истекший год (покупка в кредит)"""
         driver = self.driver
 
-        # === ШАГ 1: Ждём и нажимаем кнопку "Купить в кредит" ===
-        credit_button = WebDriverWait(driver, 25).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
-        driver.execute_script("arguments[0].click();", credit_button)
+        with allure.step("Нажать кнопку 'Купить в кредит'"):
+            credit_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
+            driver.execute_script("arguments[0].click();", credit_button)
 
-        # === ШАГ 2: Ждём формы "Кредит по данным карты" ===
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
-        )
+        with allure.step("Дождаться формы 'Кредит по данным карты'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
+            )
 
-        # === ШАГ 3: Заполняем поля с истекшим годом ===
-        inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-        inputs[0].send_keys("4444 4444 4444 4442")  # Номер карты
-        inputs[1].send_keys("10")                   # Месяц
-        inputs[2].send_keys("24")                   # Год (истекший)
-        inputs[3].send_keys("иван")                 # Владелец
-        inputs[4].send_keys("999")                  # CVC
+        with allure.step("Заполнить форму с истекшим годом (24)"):
+            inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
+            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[1].send_keys("10")
+            inputs[2].send_keys("24")
+            inputs[3].send_keys("иван")
+            inputs[4].send_keys("999")
 
-        # === ШАГ 4: Нажимаем КНОПКУ "Продолжить" ===
-        continue_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
-        )
-        continue_button.click()
+        with allure.step("Нажать кнопку 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
 
-        # === ШАГ 5: Ждём появления сообщения с текстом "Истёк срок действия карты" ===
-        year_error_element = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located(
-                (By.XPATH, "//span[@class='input__sub' and text()='Истёк срок действия карты']"))
-        )
+        with allure.step("Проверить ошибку под полем 'Год'"):
+            error_element = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//span[@class='input__sub' and text()='Истёк срок действия карты']"))
+            )
+            self.assertEqual(error_element.text.strip(), "Истёк срок действия карты")
 
-        # Проверяем текст сообщения
-        actual_text = year_error_element.text.strip()
-        expected_text = "Истёк срок действия карты"
-        self.assertEqual(actual_text, expected_text,
-                         f"Ожидалось сообщение '{expected_text}', получено '{actual_text}'")
+    # ───────────────────────────────────────
+    # 🐞 ТЕСТЫ-БАГИ (ожидают ошибку, но падают при некорректной)
+    # ───────────────────────────────────────
 
+    @allure.feature("Оплата по карте")
+    @allure.story("Баг: Некорректная ошибка при будущей дате")
+    @allure.title("Ожидается 'Истёк срок...', но получаем 'Неверно указан срок...' (11/25, покупка по карте)")
     def test_wrong_expiry_date_card(self):
-        """
-        ТЕСТ НА БАГ:
-        При вводе месяца=11 и года=25 (валидная будущая дата)
-        ОЖИДАЕТСЯ: отсутствие ошибки или ошибка "Истёк срок действия карты" под полем "Год"
-        ФАКТИЧЕСКИ: появляется ошибка "Неверно указан срок действия карты" под полем "Месяц"
-        ТЕСТ ДОЛЖЕН УПАСТЬ!
-        """
         driver = self.driver
 
-        # === ШАГ 1: Нажимаем кнопку "Купить" ===
-        buy_button = WebDriverWait(driver, 25).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
-        driver.execute_script("arguments[0].click();", buy_button)
+        with allure.step("Нажать кнопку 'Купить'"):
+            buy_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
+            driver.execute_script("arguments[0].click();", buy_button)
 
-        # === ШАГ 2: Ждём форму "Оплата по карте" ===
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
-        )
+        with allure.step("Дождаться формы 'Оплата по карте'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
+            )
 
-        # === ШАГ 3: Вводим данные с "валидной" датой 11/25 ===
-        inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-        inputs[0].send_keys("4444 4444 4444 4442")  # Номер карты
-        inputs[1].send_keys("11")  # Месяц
-        inputs[2].send_keys("25")  # Год (2025 — будущее!)
-        inputs[3].send_keys("иван")  # Владелец
-        inputs[4].send_keys("999")  # CVC
+        with allure.step("Ввести будущую дату: месяц=11, год=25"):
+            inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
+            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[1].send_keys("11")
+            inputs[2].send_keys("25")
+            inputs[3].send_keys("иван")
+            inputs[4].send_keys("999")
 
-        # === ШАГ 4: Нажимаем "Продолжить" ===
-        continue_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
-        )
-        continue_button.click()
+        with allure.step("Нажать кнопку 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
 
-        # === ШАГ 5: Ждём появления ЛЮБОЙ ошибки ===
-        error_elements = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
-        )
+        with allure.step("Проверить, что появилась ОЖИДАЕМАЯ ошибка 'Истёк срок...' под 'Годом'"):
+            error_elements = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
+            )
+            self.assertGreater(len(error_elements), 0, "Ошибки не появилось")
 
-        # Проверяем, что есть хотя бы одна ошибка
-        self.assertGreater(len(error_elements), 0,
-                           "Не появилось ни одной ошибки. Ожидалась ошибка 'Истёк срок действия карты'")
+            for i, err in enumerate(error_elements):
+                if err.text.strip() == "Истёк срок действия карты":
+                    if i == 2:  # ошибка под "Годом"
+                        return  # всё хорошо
+                    else:
+                        self.fail(f"Ошибка 'Истёк срок...' под полем {i+1}, а не под 'Годом'")
+            all_texts = [e.text.strip() for e in error_elements]
+            self.fail(f"Ожидалась 'Истёк срок...', но получено: {all_texts}")
 
-        # Проверяем текст каждой ошибки
-        for i, error in enumerate(error_elements):
-            actual_text = error.text.strip()
-            # Если найдена ошибка "Истёк срок действия карты" — это хорошо, но она должна быть под "Годом"
-            if actual_text == "Истёк срок действия карты":
-                # Проверим, что она под полем "Год" (индекс 2)
-                if i == 2:
-                    # Это корректное поведение — тест пройдет
-                    return  # Выходим из теста, всё ок
-                else:
-                    # Ошибка "Истёк срок..." появилась не под "Годом" — это тоже баг
-                    self.fail(
-                        f"Ошибка 'Истёк срок действия карты' появилась под полем {i + 1}, а не под 'Годом'. Текст: '{actual_text}'")
-
-        # Если мы дошли сюда — значит, ни одна ошибка не равна "Истёк срок действия карты"
-        # Собираем все тексты ошибок для отчёта
-        all_error_texts = [e.text.strip() for e in error_elements]
-        self.fail(f"Ожидалась ошибка 'Истёк срок действия карты', но появилась другая: {all_error_texts}")
-
+    @allure.feature("Покупка в кредит")
+    @allure.story("Баг: Некорректная ошибка при будущей дате")
+    @allure.title("Ожидается 'Истёк срок...', но получаем 'Неверно указан срок...' (11/25, покупка в кредит)")
     def test_wrong_expiry_date_credit(self):
-        """
-        ТЕСТ НА БАГ (покупка в кредит):
-        При вводе месяца=11 и года=25 (валидная будущая дата)
-        ОЖИДАЕТСЯ: отсутствие ошибки или ошибка "Истёк срок действия карты" под полем "Год"
-        ФАКТИЧЕСКИ: появляется ошибка "Неверно указан срок действия карты" под полем "Месяц"
-        ТЕСТ ДОЛЖЕН УПАСТЬ!
-        """
         driver = self.driver
 
-        # === ШАГ 1: Нажимаем кнопку "Купить в кредит" ===
-        credit_button = WebDriverWait(driver, 25).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
-        driver.execute_script("arguments[0].click();", credit_button)
+        with allure.step("Нажать кнопку 'Купить в кредит'"):
+            credit_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
+            driver.execute_script("arguments[0].click();", credit_button)
 
-        # === ШАГ 2: Ждём форму "Кредит по данным карты" ===
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
-        )
+        with allure.step("Дождаться формы 'Кредит по данным карты'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
+            )
 
-        # === ШАГ 3: Вводим данные с "валидной" датой 11/25 ===
-        inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-        inputs[0].send_keys("4444 4444 4444 4442")  # Номер карты
-        inputs[1].send_keys("11")  # Месяц
-        inputs[2].send_keys("25")  # Год (2025 — будущее!)
-        inputs[3].send_keys("иван")  # Владелец
-        inputs[4].send_keys("999")  # CVC
+        with allure.step("Ввести будущую дату: месяц=11, год=25"):
+            inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
+            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[1].send_keys("11")
+            inputs[2].send_keys("25")
+            inputs[3].send_keys("иван")
+            inputs[4].send_keys("999")
 
-        # === ШАГ 4: Нажимаем "Продолжить" ===
-        continue_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH,
-                                        "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
-        )
-        continue_button.click()
+        with allure.step("Нажать кнопку 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
 
-        # === ШАГ 5: Ждём появления ЛЮБОЙ ошибки ===
-        error_elements = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
-        )
+        with allure.step("Проверить, что появилась ОЖИДАЕМАЯ ошибка 'Истёк срок...' под 'Годом'"):
+            error_elements = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.input__sub"))
+            )
+            self.assertGreater(len(error_elements), 0, "Ошибки не появилось")
 
-        # Проверяем, что есть хотя бы одна ошибка
-        self.assertGreater(len(error_elements), 0,
-                           "Не появилось ни одной ошибки. Ожидалась ошибка 'Истёк срок действия карты'")
-
-        # Проверяем текст каждой ошибки
-        for i, error in enumerate(error_elements):
-            actual_text = error.text.strip()
-            # Если найдена ошибка "Истёк срок действия карты" — это хорошо, но она должна быть под "Годом"
-            if actual_text == "Истёк срок действия карты":
-                # Проверим, что она под полем "Год" (индекс 2)
-                if i == 2:
-                    # Это корректное поведение — тест пройдет
-                    return  # Выходим из теста, всё ок
-                else:
-                    # Ошибка "Истёк срок..." появилась не под "Годом" — это тоже баг
-                    self.fail(
-                        f"Ошибка 'Истёк срок действия карты' появилась под полем {i + 1}, а не под 'Годом'. Текст: '{actual_text}'")
-
-        # Если мы дошли сюда — значит, ни одна ошибка не равна "Истёк срок действия карты"
-        # Собираем все тексты ошибок для отчёта
-        all_error_texts = [e.text.strip() for e in error_elements]
-        self.fail(f"Ожидалась ошибка 'Истёк срок действия карты', но появилась другая: {all_error_texts}")
+            for i, err in enumerate(error_elements):
+                if err.text.strip() == "Истёк срок действия карты":
+                    if i == 2:  # ошибка под "Годом"
+                        return  # всё хорошо
+                    else:
+                        self.fail(f"Ошибка 'Истёк срок...' под полем {i+1}, а не под 'Годом'")
+            all_texts = [e.text.strip() for e in error_elements]
+            self.fail(f"Ожидалась 'Истёк срок...', но получено: {all_texts}")
 
     def tearDown(self):
         self.driver.quit()
