@@ -48,6 +48,7 @@ jobs:
     - name: Run UI and DB tests with Allure
       run: |
         mkdir -p allure-results
+        # Запускаем тесты с headless Chrome
         pytest tests/test_ui.py tests/test_db.py --alluredir=allure-results -v
 
     - name: Generate Allure Report
