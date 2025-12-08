@@ -1,0 +1,78 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Python application
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: app
+          MYSQL_USER: app
+          MYSQL_PASSWORD: pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -prootpass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install allure-pytest
+
+    - name: Start application
+      run: |
+        docker-compose up -d
+        # Ждём, пока приложение станет доступным
+        until curl -s http://localhost:8080 > /dev/null 2>&1; do
+          echo "Waiting for app to start..."
+          sleep 5
+        done
+        echo "App is ready!"
+
+    - name: Run tests with Allure
+      run: |
+        mkdir -p allure-results
+        pytest tests/test_ui.py tests/test_db.py --alluredir=allure-results -v
+
+    - name: Generate Allure Report
+      run: |
+        pip install allure-commandline
+        allure generate allure-results -o allure-report --clean
+
+    - name: Upload Allure Report as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: allure-report
+        path: allure-report/
+        if-no-files-found: warn
+
+    - name: Stop application
+      run: |
+        docker-compose down
