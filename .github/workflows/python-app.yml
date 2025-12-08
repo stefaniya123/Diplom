@@ -1,4 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# This workflow will install Python dependencies, run tests and generate Allure reports
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Python application
@@ -16,22 +16,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: rootpass
-          MYSQL_DATABASE: app
-          MYSQL_USER: app
-          MYSQL_PASSWORD: pass
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -u root -prootpass"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -46,17 +30,22 @@ jobs:
         pip install -r requirements.txt
         pip install allure-pytest
 
-    - name: Start application
+    - name: Start application with docker compose
       run: |
-        docker-compose up -d
-        # Ждём, пока приложение станет доступным
-        until curl -s http://localhost:8080 > /dev/null 2>&1; do
-          echo "Waiting for app to start..."
+        docker compose up -d
+        # Ждём, пока приложение ответит на запрос
+        for i in {1..20}; do
+          if curl -s http://localhost:8080 > /dev/null 2>&1; then
+            echo "✅ Application is ready!"
+            exit 0
+          fi
+          echo "⏳ Waiting for app to start... (attempt $i/20)"
           sleep 5
         done
-        echo "App is ready!"
+        echo "❌ Application failed to start within 100 seconds"
+        exit 1
 
-    - name: Run tests with Allure
+    - name: Run UI and DB tests with Allure
       run: |
         mkdir -p allure-results
         pytest tests/test_ui.py tests/test_db.py --alluredir=allure-results -v
@@ -73,6 +62,7 @@ jobs:
         path: allure-report/
         if-no-files-found: warn
 
-    - name: Stop application
+    - name: Stop and remove containers
+      if: always()  # Запускать всегда, даже если тесты упали
       run: |
-        docker-compose down
+        docker compose down --volumes --remove-orphans
