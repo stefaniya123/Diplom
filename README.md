@@ -92,6 +92,10 @@
 
 ## 📎 Приложения
 
-- 🔗 [Issue #2: UI показывает успех при DECLINED-платеже](https://github.com/stefaniya123/Diplom/issues/2)  
-- 🔗 [Issue #1: Некорректная ошибка валидации срока действия](https://github.com/stefaniya123/Diplom/issues/1)  
+## 📎 Приложения
+
+- 🔗 [Issue #1: Некорректная ошибка валидации срока действия (11/25)](https://github.com/stefaniya123/Diplom/issues/1)  
+- 🔗 [Issue #2: UI показывает успех при DECLINED в базе данных нет записи — сценарий «Купить»](https://github.com/stefaniya123/Diplom/issues/2)  
+- 🔗 [Issue #3: UI показывает успех при DECLINED — сценарий «Купить»](https://github.com/stefaniya123/Diplom/issues/3)  
+- 🔗 [Issue #4: UI показывает успех при DECLINED — сценарий «Купить в кредит»](https://github.com/stefaniya123/Diplom/issues/4)  
 - 🌐 [Allure Report (онлайн)](https://stefaniya123.github.io/Diplom/)
