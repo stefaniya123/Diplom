@@ -55,7 +55,7 @@ class TestSuccessfulPurchase(unittest.TestCase):
 
         with allure.step("Заполнить форму корректными данными"):
             inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[0].send_keys("4444 4444 4444 4441")
             inputs[1].send_keys("08")
             inputs[2].send_keys("26")
             inputs[3].send_keys("иван")
@@ -104,7 +104,7 @@ class TestSuccessfulPurchase(unittest.TestCase):
 
         with allure.step("Заполнить форму корректными данными"):
             inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[0].send_keys("4444 4444 4444 4441")
             inputs[1].send_keys("08")
             inputs[2].send_keys("26")
             inputs[3].send_keys("иван")
@@ -243,7 +243,7 @@ class TestSuccessfulPurchase(unittest.TestCase):
 
         with allure.step("Заполнить форму с истекшим годом (24)"):
             inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[0].send_keys("4444 4444 4444 4441")
             inputs[1].send_keys("10")
             inputs[2].send_keys("24")
             inputs[3].send_keys("иван")
@@ -282,7 +282,7 @@ class TestSuccessfulPurchase(unittest.TestCase):
 
         with allure.step("Заполнить форму с истекшим годом (24)"):
             inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[0].send_keys("4444 4444 4444 4441")
             inputs[1].send_keys("10")
             inputs[2].send_keys("24")
             inputs[3].send_keys("иван")
@@ -325,7 +325,7 @@ class TestSuccessfulPurchase(unittest.TestCase):
 
         with allure.step("Ввести будущую дату: месяц=11, год=25"):
             inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[0].send_keys("4444 4444 4444 4441")
             inputs[1].send_keys("11")
             inputs[2].send_keys("25")
             inputs[3].send_keys("иван")
@@ -373,7 +373,7 @@ class TestSuccessfulPurchase(unittest.TestCase):
 
         with allure.step("Ввести будущую дату: месяц=11, год=25"):
             inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
-            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[0].send_keys("4444 4444 4444 4441")
             inputs[1].send_keys("11")
             inputs[2].send_keys("25")
             inputs[3].send_keys("иван")
@@ -401,6 +401,131 @@ class TestSuccessfulPurchase(unittest.TestCase):
             all_texts = [e.text.strip() for e in error_elements]
             self.fail(f"Ожидалась 'Истёк срок...', но получено: {all_texts}")
 
+    # ───────────────────────────────────────
+    #  БАГ: НЕКОРРЕКТНАЯ ОБРАБОТКА КАРТЫ 4444 4444 4444 4442
+    # ───────────────────────────────────────
+
+    @allure.feature("Оплата по карте")
+    @allure.story("Баг: Некорректная обработка отказа банка")
+    @allure.title("Карта 4444 4444 4444 4442 должна вызывать ошибку, но вызывает успех (покупка по карте)")
+    def test_card_4442_should_reject_but_approves(self):
+        driver = self.driver
+
+        with allure.step("Нажать кнопку 'Купить'"):
+            buy_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button_size_m.button_theme_alfa-on-white"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buy_button)
+            driver.execute_script("arguments[0].click();", buy_button)
+
+        with allure.step("Дождаться формы 'Оплата по карте'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Оплата по карте']"))
+            )
+
+        with allure.step("Заполнить форму данными карты 4444 4444 4444 4442"):
+            inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
+            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[1].send_keys("08")
+            inputs[2].send_keys("26")
+            inputs[3].send_keys("иван")
+            inputs[4].send_keys("999")
+
+        with allure.step("Нажать кнопку 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
+
+        with allure.step("Дождаться появления ЛЮБОГО уведомления"):
+            notification = WebDriverWait(driver, 25).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "div.notification"))
+            )
+
+        with allure.step("Проверить, что уведомление — НЕ об успехе, а об ошибке"):
+            notification_class = notification.get_attribute("class")
+
+            if "notification_status_ok" in notification_class:
+                title = notification.find_element(By.CSS_SELECTOR, ".notification__title").text.strip()
+                content = notification.find_element(By.CSS_SELECTOR, ".notification__content").text.strip()
+                self.fail(
+                    f"Ожидалось уведомление об ОШИБКЕ, но получено об УСПЕХЕ!\n"
+                    f"Заголовок: '{title}'\n"
+                    f"Содержимое: '{content}'"
+                )
+
+            # Если дошли сюда — уведомление не 'ok', проверим, что оно 'error'
+            assert "notification_status_error" in notification_class, \
+                f"Уведомление не является ни 'ok', ни 'error'. Классы: {notification_class}"
+
+            title = notification.find_element(By.CSS_SELECTOR, ".notification__title").text.strip()
+            content = notification.find_element(By.CSS_SELECTOR, ".notification__content").text.strip()
+
+            assert title == "Ошибка", f"Неверный заголовок ошибки: '{title}'"
+            assert "Ошибка! Банк отказал в проведении операции." in content, \
+                f"Неверное содержимое ошибки: '{content}'"
+
+    @allure.feature("Покупка в кредит")
+    @allure.story("Баг: Некорректная обработка отказа банка")
+    @allure.title("Карта 4444 4444 4444 4442 должна вызывать ошибку, но вызывает успех (покупка в кредит)")
+    def test_credit_4442_should_reject_but_approves(self):
+        driver = self.driver
+
+        with allure.step("Нажать кнопку 'Купить в кредит'"):
+            credit_button = WebDriverWait(driver, 25).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and contains(., 'Купить в кредит')]"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", credit_button)
+            driver.execute_script("arguments[0].click();", credit_button)
+
+        with allure.step("Дождаться формы 'Кредит по данным карты'"):
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//h3[text()='Кредит по данным карты']"))
+            )
+
+        with allure.step("Заполнить форму данными карты 4444 4444 4444 4442"):
+            inputs = driver.find_elements(By.CSS_SELECTOR, "input.input__control")
+            inputs[0].send_keys("4444 4444 4444 4442")
+            inputs[1].send_keys("08")
+            inputs[2].send_keys("26")
+            inputs[3].send_keys("иван")
+            inputs[4].send_keys("999")
+
+        with allure.step("Нажать кнопку 'Продолжить'"):
+            continue_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH,
+                                            "//button[contains(@class, 'button_view_extra') and contains(@class, 'button_size_m') and contains(@class, 'button_theme_alfa-on-white') and not(contains(@class, 'button_disabled')) and contains(., 'Продолжить')]"))
+            )
+            continue_button.click()
+
+        with allure.step("Дождаться появления ЛЮБОГО уведомления"):
+            notification = WebDriverWait(driver, 25).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "div.notification"))
+            )
+
+        with allure.step("Проверить, что уведомление — НЕ об успехе, а об ошибке"):
+            notification_class = notification.get_attribute("class")
+
+            if "notification_status_ok" in notification_class:
+                title = notification.find_element(By.CSS_SELECTOR, ".notification__title").text.strip()
+                content = notification.find_element(By.CSS_SELECTOR, ".notification__content").text.strip()
+                self.fail(
+                    f"Ожидалось уведомление об ОШИБКЕ, но получено об УСПЕХЕ!\n"
+                    f"Заголовок: '{title}'\n"
+                    f"Содержимое: '{content}'"
+                )
+
+            assert "notification_status_error" in notification_class, \
+                f"Уведомление не является ни 'ok', ни 'error'. Классы: {notification_class}"
+
+            title = notification.find_element(By.CSS_SELECTOR, ".notification__title").text.strip()
+            content = notification.find_element(By.CSS_SELECTOR, ".notification__content").text.strip()
+
+            assert title == "Ошибка", f"Неверный заголовок ошибки: '{title}'"
+            assert "Ошибка! Банк отказал в проведении операции." in content, \
+                f"Неверное содержимое ошибки: '{content}'"
     def tearDown(self):
         self.driver.quit()
 
